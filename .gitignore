@@ -26,3 +26,5 @@ temp/
 
 # Coverage
 coverage/
+# Personal notes
+notes.js
