@@ -1,9 +1,9 @@
 const userModel = require("../models/user.model");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 
 async function userRegister(req, res) {
-  const { username, email, password, role = "user" } = req.body;
+  const { username, email, password } = req.body;
 
   const userExists = await userModel.findOne({
     $or: [{ username }, { email }],
@@ -17,12 +17,11 @@ async function userRegister(req, res) {
   const user = await userModel.create({
     username,
     email,
-    password: hash, //hashing the password
-    role,
+    password: hash,
   });
 
   const token = jwt.sign(
-    { id: user._id, role: user.role },
+    { id: user._id },
     process.env.JWT_SECRET,
   );
 
@@ -33,7 +32,6 @@ async function userRegister(req, res) {
       id: user._id,
       username: user.username,
       email: user.email,
-      role: user.role,
     },
   });
 }
@@ -55,7 +53,6 @@ async function userLogin(req, res) {
   const token = jwt.sign(
     {
       id: user._id,
-      role: user.role,
     },
     process.env.JWT_SECRET,
   );
@@ -66,7 +63,6 @@ async function userLogin(req, res) {
       id: user._id,
       username: user.username,
       email: user.email,
-      role: user.role,
     },
   });
 }

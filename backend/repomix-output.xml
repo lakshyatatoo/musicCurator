@@ -1,0 +1,1413 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+public/
+  index.html
+src/
+  controllers/
+    auth.controller.js
+    spotify.controller.js
+  db/
+    db.js
+  middlewares/
+    auth.middleware.js
+  models/
+    spotifyAccount.model.js
+    user.model.js
+  routes/
+    auth.routes.js
+    spotify.routes.js
+  services/
+    llm.service.js
+    musicAnalysis.service.js
+    spotify.service.js
+  app.js
+.env.example
+.gitignore
+package.json
+README.md
+server.js
+test.js
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="public/index.html">
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spotify Analyzer</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: monospace;
+        background: #1a1a1a;
+        color: #0f0;
+        padding: 20px;
+      }
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      h1 {
+        margin-bottom: 20px;
+      }
+      .section {
+        background: #222;
+        padding: 15px;
+        margin-bottom: 15px;
+        border: 1px solid #333;
+      }
+      .section h2 {
+        color: #0f0;
+        margin-bottom: 10px;
+        font-size: 14px;
+      }
+      input {
+        background: #333;
+        border: 1px solid #555;
+        color: #0f0;
+        padding: 8px;
+        width: 200px;
+        margin-right: 10px;
+      }
+      button {
+        background: #0f0;
+        color: #000;
+        border: none;
+        padding: 8px 16px;
+        cursor: pointer;
+        font-family: monospace;
+        font-weight: bold;
+      }
+      button:hover {
+        background: #0a0;
+      }
+      button:disabled {
+        background: #555;
+        cursor: not-allowed;
+      }
+      #log {
+        background: #111;
+        padding: 10px;
+        height: 400px;
+        overflow-y: auto;
+        font-size: 12px;
+        border: 1px solid #333;
+      }
+      .log-entry {
+        margin-bottom: 5px;
+      }
+      .log-entry.success {
+        color: #0f0;
+      }
+      .log-entry.error {
+        color: #f00;
+      }
+      .log-entry.info {
+        color: #0ff;
+      }
+      .log-entry.warning {
+        color: #ff0;
+      }
+      .btn-group {
+        margin-top: 10px;
+      }
+      .btn-group button {
+        margin-right: 10px;
+      }
+      #result {
+        white-space: pre-wrap;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>[ musicCurator ]</h1>
+
+      <div class="section">
+        <h2>AUTH</h2>
+        <input
+          type="text"
+          id="username"
+          placeholder="username"
+          value="testuser"
+        />
+        <input
+          type="password"
+          id="password"
+          placeholder="password"
+          value="password123"
+        />
+        <button onclick="register()">Register</button>
+        <button onclick="login()">Login</button>
+        <button onclick="logout()">Logout</button>
+      </div>
+
+      <div class="section">
+        <h2>SPOTIFY</h2>
+        <div class="btn-group">
+          <button onclick="connectSpotify()">Connect Spotify</button>
+          <button onclick="analyze()">Analyze</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>LOG</h2>
+        <div id="log"></div>
+      </div>
+
+      <div class="section">
+        <h2>RESULT</h2>
+        <div id="result">Waiting...</div>
+      </div>
+    </div>
+
+    <script>
+      const logEl = document.getElementById("log");
+      const resultEl = document.getElementById("result");
+
+      function log(msg, type = "info") {
+        const entry = document.createElement("div");
+        entry.className = `log-entry ${type}`;
+        entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        logEl.appendChild(entry);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      async function api(method, path, body = null) {
+        try {
+          const options = {
+            method,
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+          };
+          if (body) options.body = JSON.stringify(body);
+          const res = await fetch(path, options);
+          const data = await res.json();
+          log(
+            `${method} ${path} -> ${res.status}`,
+            res.ok ? "success" : "error",
+          );
+          return { status: res.status, data };
+        } catch (err) {
+          log(`Error: ${err.message}`, "error");
+          return { status: 0, data: { message: err.message } };
+        }
+      }
+
+      async function register() {
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+        log("Registering...", "info");
+        const res = await api("POST", "/api/auth/register", {
+          username,
+          email: `${username}@test.com`,
+          password,
+        });
+        log(
+          JSON.stringify(res.data),
+          res.status === 201 ? "success" : "warning",
+        );
+      }
+
+      async function login() {
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+        log("Logging in...", "info");
+        const res = await api("POST", "/api/auth/login", {
+          username,
+          password,
+        });
+        log(
+          JSON.stringify(res.data),
+          res.status === 200 ? "success" : "warning",
+        );
+      }
+
+      async function logout() {
+        log("Logging out...", "info");
+        const res = await api("POST", "/api/auth/logout");
+        log(JSON.stringify(res.data), "success");
+      }
+
+      async function connectSpotify() {
+        log("Getting Spotify auth URL...", "info");
+        const res = await api("GET", "/api/spotify/connect");
+        if (res.data.authUrl) {
+          log("Opening Spotify authorization...", "warning");
+          window.open(res.data.authUrl, "_blank");
+          log(
+            "Authorize in the new tab, then come back and click Analyze",
+            "warning",
+          );
+        } else {
+          log(JSON.stringify(res.data), "error");
+        }
+      }
+
+      async function analyze() {
+        log("Running analysis... (this may take 10-20 seconds)", "info");
+        resultEl.textContent = "Loading...";
+        const res = await api("GET", "/api/spotify/analyze");
+        if (res.status === 200) {
+          log("Analysis complete!", "success");
+          resultEl.textContent = JSON.stringify(res.data, null, 2);
+        } else {
+          log(JSON.stringify(res.data), "error");
+          resultEl.textContent = JSON.stringify(res.data, null, 2);
+        }
+      }
+
+      log("Ready. Register or login first, then connect Spotify.", "info");
+    </script>
+  </body>
+</html>
+</file>
+
+<file path="src/controllers/auth.controller.js">
+const userModel = require("../models/user.model");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+
+async function userRegister(req, res) {
+  const { username, email, password } = req.body;
+
+  const userExists = await userModel.findOne({
+    $or: [{ username }, { email }],
+  });
+  if (userExists) {
+    return res.status(409).json({ message: "User already exists" });
+  }
+
+  const hash = await bcrypt.hash(password, 10);
+
+  const user = await userModel.create({
+    username,
+    email,
+    password: hash,
+  });
+
+  const token = jwt.sign(
+    { id: user._id },
+    process.env.JWT_SECRET,
+  );
+
+  res.cookie("token", token);
+  res.status(201).json({
+    message: "User registered successfully",
+    user: {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+    },
+  });
+}
+async function userLogin(req, res) {
+  const { username, email, password } = req.body;
+
+  const user = await userModel.findOne({
+    $or: [{ username }, { email }],
+  });
+  if (!user) {
+    return res.status(401).json({ message: "Invalid username or email" });
+  }
+  //user const return sthe user that has any match from the given username or email
+  // now we have some data of the user from above and we can compare its password
+  const isPasswordValid = await bcrypt.compare(password, user.password); //password received from the login page and user password that exist
+  if (!isPasswordValid) {
+    return res.status(401).json({ message: "Invalid password" });
+  }
+  const token = jwt.sign(
+    {
+      id: user._id,
+    },
+    process.env.JWT_SECRET,
+  );
+  res.cookie("token", token);
+  res.status(200).json({
+    message: "user logged in successfully",
+    user: {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+    },
+  });
+}
+async function userLogout(req, res) {
+  res.clearCookie("token");
+  res.status(200).json({ message: "User logged out successfully" });
+}
+
+module.exports = { userRegister, userLogin, userLogout };
+</file>
+
+<file path="src/controllers/spotify.controller.js">
+const spotifyAccountModel = require("../models/spotifyAccount.model");
+const spotifyService = require("../services/spotify.service");
+const { buildMusicProfile } = require("../services/musicAnalysis.service");
+const { analyzeWithLLM } = require("../services/llm.service");
+const crypto = require("crypto");
+
+const SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize";
+const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
+const SCOPES = [
+  "user-top-read",
+  "user-read-recently-played",
+  "user-read-private",
+  "user-read-email",
+];
+
+function encodeState(userId) {
+  const payload = JSON.stringify({ userId, nonce: crypto.randomBytes(8).toString("hex") });
+  return Buffer.from(payload).toString("base64url");
+}
+
+function decodeState(state) {
+  try {
+    const payload = Buffer.from(state, "base64url").toString("utf-8");
+    return JSON.parse(payload);
+  } catch {
+    return null;
+  }
+}
+
+async function connect(req, res) {
+  const state = encodeState(req.user.id);
+
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: process.env.SPOTIFY_CLIENT_ID,
+    scope: SCOPES.join(" "),
+    redirect_uri: process.env.SPOTIFY_REDIRECT_URI,
+    state: state,
+    show_dialog: true,
+  });
+
+  const authUrl = `${SPOTIFY_AUTH_URL}?${params.toString()}`;
+
+  res.status(200).json({ authUrl });
+}
+
+async function callback(req, res) {
+  const { code, state, error } = req.query;
+
+  if (error) {
+    return res.status(400).json({ message: "Spotify authorization denied" });
+  }
+
+  if (!state) {
+    return res.status(400).json({ message: "Missing state parameter" });
+  }
+
+  const stateData = decodeState(state);
+  if (!stateData || !stateData.userId) {
+    return res.status(403).json({ message: "Invalid state parameter" });
+  }
+
+  const userId = stateData.userId;
+
+  try {
+    const tokenResponse = await fetch(SPOTIFY_TOKEN_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization:
+          "Basic " +
+          Buffer.from(
+            `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`,
+          ).toString("base64"),
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code: code,
+        redirect_uri: process.env.SPOTIFY_REDIRECT_URI,
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      const errorData = await tokenResponse.json();
+      console.error("Spotify token error:", errorData);
+      return res
+        .status(500)
+        .json({ message: "Failed to exchange code for token" });
+    }
+
+    const tokenData = await tokenResponse.json();
+    const { access_token, refresh_token, expires_in } = tokenData;
+
+    const profileResponse = await fetch("https://api.spotify.com/v1/me", {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+      },
+    });
+
+    if (!profileResponse.ok) {
+      return res
+        .status(500)
+        .json({ message: "Failed to fetch Spotify profile" });
+    }
+
+    const profile = await profileResponse.json();
+    const spotifyAccountId = profile.id;
+    const expiresAt = new Date(Date.now() + expires_in * 1000);
+
+    await spotifyAccountModel.findOneAndUpdate(
+      { user: userId },
+      {
+        spotifyAccountId,
+        accessToken: access_token,
+        refreshToken: refresh_token,
+        expiresAt,
+        connectedAt: new Date(),
+      },
+      { upsert: true, new: true },
+    );
+
+    res.status(200).json({
+      message: "Spotify account connected successfully",
+      spotifyProfile: {
+        id: profile.id,
+        displayName: profile.display_name,
+        email: profile.email,
+      },
+    });
+  } catch (error) {
+    console.error("Spotify callback error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+async function analyze(req, res) {
+  try {
+    const userId = req.user.id;
+
+    const spotifyAccount = await spotifyAccountModel.findOne({
+      user: userId,
+    });
+
+    if (!spotifyAccount) {
+      return res.status(400).json({
+        message: "Spotify account not connected. Please connect first.",
+      });
+    }
+
+    const [
+      topTracksShort,
+      topTracksMedium,
+      topTracksLong,
+      topArtistsShort,
+      topArtistsMedium,
+      topArtistsLong,
+      recentlyPlayed,
+    ] = await Promise.all([
+      spotifyService.getTopTracks(userId, "short_term", 50),
+      spotifyService.getTopTracks(userId, "medium_term", 50),
+      spotifyService.getTopTracks(userId, "long_term", 50),
+      spotifyService.getTopArtists(userId, "short_term", 50),
+      spotifyService.getTopArtists(userId, "medium_term", 50),
+      spotifyService.getTopArtists(userId, "long_term", 50),
+      spotifyService.getRecentlyPlayed(userId, 50),
+    ]);
+
+    const musicProfile = buildMusicProfile({
+      topTracksShort,
+      topTracksMedium,
+      topTracksLong,
+      topArtistsShort,
+      topArtistsMedium,
+      topArtistsLong,
+      recentlyPlayed,
+    });
+
+    const llmAnalysis = await analyzeWithLLM(musicProfile);
+
+    res.status(200).json({
+      message: "Music analysis completed successfully",
+      profile: musicProfile,
+      analysis: llmAnalysis,
+    });
+  } catch (error) {
+    console.error("Analysis error:", error);
+    res.status(500).json({ message: "Failed to analyze music data", error: error.message });
+  }
+}
+
+module.exports = { connect, callback, analyze };
+</file>
+
+<file path="src/db/db.js">
+const mongoose = require("mongoose");
+
+async function connectDB() {
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("DB connected successfully");
+  } catch (err) {
+    console.log("Error connecting to MongoDB:", err);
+  }
+}
+module.exports = connectDB;
+</file>
+
+<file path="src/middlewares/auth.middleware.js">
+const jwt = require("jsonwebtoken");
+
+async function authUser(req, res, next) {
+  const token = req.cookies.token;
+
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorised access" });
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Unauthorised access" });
+  }
+}
+
+module.exports = { authUser };
+</file>
+
+<file path="src/models/spotifyAccount.model.js">
+const mongoose = require("mongoose");
+
+const spotifyAccountSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "user",
+    required: true,
+    unique: true,
+  },
+  spotifyAccountId: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  accessToken: {
+    type: String,
+    required: true,
+  },
+  refreshToken: {
+    type: String,
+    required: true,
+  },
+  expiresAt: {
+    type: Date,
+    required: true,
+  },
+  connectedAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+const spotifyAccountModel = mongoose.model(
+  "spotifyAccount",
+  spotifyAccountSchema,
+);
+
+module.exports = spotifyAccountModel;
+</file>
+
+<file path="src/models/user.model.js">
+const mongoose = require("mongoose");
+
+const userSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+});
+
+const userModel = mongoose.model("user", userSchema);
+
+module.exports = userModel;
+</file>
+
+<file path="src/routes/auth.routes.js">
+const express = require("express");
+const authController = require("../controllers/auth.controller");
+const router = express.Router();
+
+router.post("/register", authController.userRegister);
+router.post("/login", authController.userLogin);
+router.post("/logout", authController.userLogout);
+ 
+module.exports = router;
+</file>
+
+<file path="src/routes/spotify.routes.js">
+const express = require("express");
+const router = express.Router();
+const spotifyController = require("../controllers/spotify.controller");
+const authMiddleware = require("../middlewares/auth.middleware");
+
+router.get("/connect", authMiddleware.authUser, spotifyController.connect);
+router.get("/callback", spotifyController.callback);
+router.get("/analyze", authMiddleware.authUser, spotifyController.analyze);
+
+module.exports = router;
+</file>
+
+<file path="src/services/llm.service.js">
+function buildPrompt(musicProfile) {
+  return `You are a music analysis assistant. Analyze the following Spotify listening profile and provide personalized insights and recommendations.
+
+User Music Profile:
+${JSON.stringify(musicProfile, null, 2)}
+
+Provide your response as a valid JSON object with exactly this structure:
+{
+  "musicPersonality": "A 2-3 sentence description of the user's overall music personality and listening style",
+  "dominantPreferences": {
+    "primaryGenres": ["top 3 genres"],
+    "moodDescription": "description of the overall mood/vibe of their music taste",
+    "eraPreference": "description of whether they prefer newer or classic music"
+  },
+  "listeningEvolution": {
+    "recentVsLongTerm": "analysis of how their recent listening differs from long-term preferences",
+    "emergingInterests": ["new artists or genres they're exploring"],
+    "consistentFavorites": ["artists/genres that remain constant"]
+  },
+  "observations": [
+    "observation 1",
+    "observation 2",
+    "observation 3",
+    "observation 4",
+    "observation 5"
+  ],
+  "songRecommendations": [
+    {"song": "Song Name", "artist": "Artist Name", "reason": "why this fits"},
+    {"song": "Song Name", "artist": "Artist Name", "reason": "why this fits"},
+    {"song": "Song Name", "artist": "Artist Name", "reason": "why this fits"},
+    {"song": "Song Name", "artist": "Artist Name", "reason": "why this fits"},
+    {"song": "Song Name", "artist": "Artist Name", "reason": "why this fits"},
+    {"song": "Song Name", "artist": "Artist Name", "reason": "why this fits"},
+    {"song": "Song Name", "artist": "Artist Name", "reason": "why this fits"},
+    {"song": "Song Name", "artist": "Artist Name", "reason": "why this fits"},
+    {"song": "Song Name", "artist": "Artist Name", "reason": "why this fits"},
+    {"song": "Song Name", "artist": "Artist Name", "reason": "why this fits"}
+  ],
+  "artistRecommendations": [
+    {"artist": "Artist Name", "reason": "why this artist fits their taste"},
+    {"artist": "Artist Name", "reason": "why this artist fits their taste"},
+    {"artist": "Artist Name", "reason": "why this artist fits their taste"},
+    {"artist": "Artist Name", "reason": "why this artist fits their taste"},
+    {"artist": "Artist Name", "reason": "why this artist fits their taste"}
+  ]
+}
+
+Important rules:
+- Do NOT recommend any songs or artists that already appear in the user's listening history
+- All recommendations should be real, existing songs and artists
+- Provide brief but specific reasons for each recommendation
+- Return ONLY valid JSON, no additional text`;
+}
+
+async function analyzeWithLLM(musicProfile) {
+  const apiKey = process.env.OPENCODE_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("OPENCODE_API_KEY not configured");
+  }
+
+  const prompt = buildPrompt(musicProfile);
+  const url = "https://opencode.ai/zen/go/v1/chat/completions";
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "mimo-v2.5-pro",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a music analysis expert. Always respond with valid JSON only, no markdown formatting or additional text.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 16000,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      `LLM API error: ${response.status} - ${errorData.error?.message || "Unknown error"}`,
+    );
+  }
+
+  const data = await response.json();
+  console.error("=== LLM RAW RESPONSE ===");
+  console.error(JSON.stringify(data, null, 2));
+  console.error("=== END ===");
+  const content = data.choices?.[0]?.message?.content;
+
+  if (!content) {
+    throw new Error("No content in LLM response");
+  }
+
+  try {
+    const cleanedContent = content.replace(/```json\n?|\n?```/g, "").trim();
+    return JSON.parse(cleanedContent);
+  } catch (parseError) {
+    console.error("=== RAW LLM RESPONSE ===");
+    console.error(content);
+    console.error("=== END RESPONSE ===");
+    throw new Error("Invalid JSON response from LLM");
+  }
+}
+
+module.exports = { analyzeWithLLM };
+</file>
+
+<file path="src/services/musicAnalysis.service.js">
+function calculateGenreDistribution(artists) {
+  const genreCounts = {};
+
+  artists.forEach((artist) => {
+    if (artist.genres && Array.isArray(artist.genres)) {
+      artist.genres.forEach((genre) => {
+        genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+      });
+    }
+  });
+
+  const totalGenres = Object.values(genreCounts).reduce(
+    (sum, count) => sum + count,
+    0,
+  );
+
+  return Object.entries(genreCounts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 15)
+    .map(([genre, count]) => ({
+      genre,
+      count,
+      percentage: Math.round((count / totalGenres) * 100),
+    }));
+}
+
+function extractTopArtists(artists, limit = 10) {
+  return artists.slice(0, limit).map((artist, index) => ({
+    rank: index + 1,
+    name: artist.name,
+    id: artist.id,
+    genres: artist.genres?.slice(0, 3) || [],
+    popularity: artist.popularity,
+    followers: artist.followers?.total,
+  }));
+}
+
+function extractTopTracks(tracks, limit = 10) {
+  return tracks.slice(0, limit).map((track, index) => ({
+    rank: index + 1,
+    name: track.name,
+    id: track.id,
+    artist: track.artists?.[0]?.name || "Unknown",
+    artistId: track.artists?.[0]?.id,
+    album: track.album?.name,
+    popularity: track.popularity,
+    durationMs: track.duration_ms,
+  }));
+}
+
+function calculateListeningDiversity(
+  topTracksShort,
+  topTracksMedium,
+  topTracksLong,
+) {
+  const shortIds = new Set(topTracksShort.map((t) => t.id));
+  const mediumIds = new Set(topTracksMedium.map((t) => t.id));
+  const longIds = new Set(topTracksLong.map((t) => t.id));
+
+  const shortMediumOverlap = [...shortIds].filter((id) =>
+    mediumIds.has(id),
+  ).length;
+  const mediumLongOverlap = [...mediumIds].filter((id) =>
+    longIds.has(id),
+  ).length;
+  const shortLongOverlap = [...shortIds].filter((id) => longIds.has(id)).length;
+
+  const totalUnique = new Set([...shortIds, ...mediumIds, ...longIds]).size;
+
+  return {
+    totalUniqueTracks: totalUnique,
+    shortTermVariety: Math.round(((50 - shortMediumOverlap) / 50) * 100),
+    mediumTermStability: Math.round((mediumLongOverlap / 50) * 100),
+    overallConsistency: Math.round(
+      ((shortMediumOverlap + mediumLongOverlap + shortLongOverlap) / 150) * 100,
+    ),
+  };
+}
+
+function compareTimeRanges(topArtistsShort, topArtistsLong) {
+  const shortNames = new Set(topArtistsShort.map((a) => a.name));
+  const longNames = new Set(topArtistsLong.map((a) => a.name));
+
+  const consistentArtists = [...shortNames].filter((name) =>
+    longNames.has(name),
+  );
+
+  const emergingArtists = [...shortNames].filter(
+    (name) => !longNames.has(name),
+  );
+
+  const fadingArtists = [...longNames].filter((name) => !shortNames.has(name));
+
+  return {
+    consistentArtists: consistentArtists.slice(0, 5),
+    emergingArtists: emergingArtists.slice(0, 5),
+    fadingArtists: fadingArtists.slice(0, 5),
+  };
+}
+
+function calculateAveragePopularity(tracks) {
+  if (!tracks || tracks.length === 0) return 0;
+  const total = tracks.reduce((sum, track) => sum + (track.popularity || 0), 0);
+  return Math.round(total / tracks.length);
+}
+
+function buildMusicProfile(spotifyData) {
+  const {
+    topTracksShort,
+    topTracksMedium,
+    topTracksLong,
+    topArtistsShort,
+    topArtistsMedium,
+    topArtistsLong,
+    recentlyPlayed,
+  } = spotifyData;
+
+  const genreDistribution = calculateGenreDistribution([
+    ...topArtistsShort.items,
+    ...topArtistsMedium.items,
+    ...topArtistsLong.items,
+  ]);
+
+  const topArtists = extractTopArtists(topArtistsMedium.items);
+  const topTracks = extractTopTracks(topTracksMedium.items);
+
+  const listeningDiversity = calculateListeningDiversity(
+    topTracksShort.items,
+    topTracksMedium.items,
+    topTracksLong.items,
+  );
+
+  const timeRangeComparison = compareTimeRanges(
+    topArtistsShort.items,
+    topArtistsLong.items,
+  );
+
+  const recentTracks =
+    recentlyPlayed.items?.slice(0, 10).map((item) => ({
+      name: item.track.name,
+      artist: item.track.artists?.[0]?.name || "Unknown",
+      playedAt: item.played_at,
+    })) || [];
+
+  const profile = {
+    topArtists,
+    topTracks,
+    dominantGenres: genreDistribution.slice(0, 10),
+    listeningDiversity,
+    timeRangeComparison,
+    recentListening: {
+      lastPlayed: recentTracks,
+      averagePopularity: calculateAveragePopularity(
+        recentlyPlayed.items?.map((item) => item.track) || [],
+      ),
+    },
+    stats: {
+      totalTopArtists: topArtistsMedium.items.length,
+      totalTopTracks: topTracksMedium.items.length,
+      topGenre: genreDistribution[0]?.genre || "Unknown",
+      topGenrePercentage: genreDistribution[0]?.percentage || 0,
+    },
+  };
+
+  return profile;
+}
+
+module.exports = { buildMusicProfile };
+</file>
+
+<file path="src/services/spotify.service.js">
+const spotifyAccountModel = require("../models/spotifyAccount.model");
+
+const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
+const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
+
+async function getValidAccessToken(userId) {
+  const account = await spotifyAccountModel.findOne({ user: userId });
+
+  if (!account) {
+    throw new Error("Spotify account not connected");
+  }
+
+  if (new Date() < account.expiresAt) {
+    return account.accessToken;
+  }
+
+  const response = await fetch(SPOTIFY_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization:
+        "Basic " +
+        Buffer.from(
+          `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`,
+        ).toString("base64"),
+    },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: account.refreshToken,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to refresh Spotify token");
+  }
+
+  const data = await response.json();
+  const { access_token, expires_in } = data;
+
+  account.accessToken = access_token;
+  account.expiresAt = new Date(Date.now() + expires_in * 1000);
+  await account.save();
+
+  return access_token;
+}
+
+async function fetchSpotifyEndpoint(userId, endpoint, params = {}) {
+  const accessToken = await getValidAccessToken(userId);
+
+  const url = new URL(`${SPOTIFY_API_BASE}${endpoint}`);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      url.searchParams.append(key, value);
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      `Spotify API error: ${response.status} - ${errorData.error?.message || "Unknown error"}`,
+    );
+  }
+
+  return response.json();
+}
+
+async function getTopTracks(userId, timeRange = "medium_term", limit = 50) {
+  return fetchSpotifyEndpoint(userId, "/me/top/tracks", {
+    time_range: timeRange,
+    limit,
+    offset: 0,
+  });
+}
+
+async function getTopArtists(userId, timeRange = "medium_term", limit = 50) {
+  return fetchSpotifyEndpoint(userId, "/me/top/artists", {
+    time_range: timeRange,
+    limit,
+    offset: 0,
+  });
+}
+
+async function getRecentlyPlayed(userId, limit = 50) {
+  return fetchSpotifyEndpoint(userId, "/me/player/recently-played", {
+    limit,
+  });
+}
+
+async function getUserProfile(userId) {
+  return fetchSpotifyEndpoint(userId, "/me");
+}
+
+module.exports = {
+  getTopTracks,
+  getTopArtists,
+  getRecentlyPlayed,
+  getUserProfile,
+};
+</file>
+
+<file path="src/app.js">
+const express = require("express");
+const path = require("path");
+const app = express();
+const authRoutes = require("./routes/auth.routes");
+const spotifyRoutes = require("./routes/spotify.routes");
+const cookieParser = require("cookie-parser");
+
+app.use(cookieParser());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, "../public")));
+app.use("/api/auth", authRoutes);
+app.use("/api/spotify", spotifyRoutes);
+
+module.exports = app;
+</file>
+
+<file path=".env.example">
+MONGO_URI=
+JWT_SECRET=
+SPOTIFY_CLIENT_ID=
+SPOTIFY_CLIENT_SECRET=
+SPOTIFY_REDIRECT_URI=http://127.0.0.1:3000/api/spotify/callback
+OPENCODE_API_KEY=
+</file>
+
+<file path=".gitignore">
+# Dependencies
+node_modules/
+
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / editor files
+.vscode/
+.idea/
+
+# Temporary files
+tmp/
+temp/
+
+# Coverage
+coverage/
+# Personal notes
+notes.js
+</file>
+
+<file path="package.json">
+{
+  "name": "spotify-music-analyzer",
+  "version": "1.0.0",
+  "description": "Spotify OAuth integration with AI-powered music analysis",
+  "main": "server.js",
+  "scripts": {
+    "test": "node test.js",
+    "dev": "npx nodemon server.js",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.9.1",
+    "nodemon": "^3.1.14"
+  }
+}
+</file>
+
+<file path="README.md">
+# Spotify Music Analyzer
+
+A backend service that connects to users' Spotify accounts via OAuth, fetches their listening data, processes it into a statistical profile, and uses AI to provide personalized music analysis and recommendations.
+
+## Features
+
+- User registration and login with JWT authentication
+- Spotify OAuth 2.0 Authorization Code Flow
+- Fetch user's top tracks, artists, and recently played music
+- Process raw Spotify data into compact music profile
+- AI-powered music analysis using OpenAI
+- Personalized song and artist recommendations
+
+## Tech Stack
+
+- **Runtime:** Node.js
+- **Framework:** Express.js
+- **Database:** MongoDB with Mongoose
+- **Auth:** JWT, bcryptjs
+- **External APIs:** Spotify Web API, OpenAI API
+
+## Project Structure
+
+```
+backend/
+├── src/
+│   ├── controllers/
+│   │   ├── auth.controller.js      # User login/register
+│   │   └── spotify.controller.js   # Spotify OAuth & analysis
+│   ├── db/
+│   │   └── db.js                   # MongoDB connection
+│   ├── middlewares/
+│   │   └── auth.middleware.js       # JWT verification
+│   ├── models/
+│   │   ├── user.model.js           # User schema
+│   │   └── spotifyAccount.model.js # Spotify tokens schema
+│   ├── routes/
+│   │   ├── auth.routes.js          # Auth endpoints
+│   │   └── spotify.routes.js       # Spotify endpoints
+│   ├── services/
+│   │   ├── spotify.service.js      # Spotify API calls
+│   │   ├── musicAnalysis.service.js # Data processing
+│   │   └── llm.service.js          # OpenAI integration
+│   └── app.js                      # Express app setup
+├── .env.example
+├── package.json
+└── server.js
+```
+
+## API Endpoints
+
+### Auth
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login user
+- `POST /api/auth/logout` - Logout user
+
+### Spotify
+- `GET /api/spotify/connect` - Get Spotify OAuth URL
+- `GET /api/spotify/callback` - OAuth callback (redirect URI)
+- `GET /api/spotify/analyze` - Full music analysis pipeline
+
+## Environment Variables
+
+```
+MONGO_URI=mongodb://localhost:27017/spotify-analyzer
+JWT_SECRET=your-secret-key
+SPOTIFY_CLIENT_ID=your-spotify-client-id
+SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
+SPOTIFY_REDIRECT_URI=http://127.0.0.1:3000/api/spotify/callback
+OPENAI_API_KEY=your-openai-api-key
+```
+
+## Flow
+
+1. User registers/logs into the app
+2. User clicks "Connect Spotify" → backend returns Spotify OAuth URL
+3. User authorizes → Spotify redirects to callback
+4. Backend stores Spotify tokens linked to user
+5. User requests analysis → backend fetches Spotify data, processes it, sends to LLM
+6. Backend returns structured analysis with recommendations
+</file>
+
+<file path="server.js">
+require("dotenv").config();
+console.log("OPENCODE_API_KEY loaded:", process.env.OPENCODE_API_KEY ? "YES" : "NO");
+const app = require("./src/app");
+const connectDB = require("./src/db/db");
+
+connectDB();
+
+app.listen(3000, () => {
+  console.log("Server is running on port 3000");
+});
+</file>
+
+<file path="test.js">
+const BASE_URL = "http://localhost:3000";
+const COOKIE_JAR = {};
+
+async function request(method, path, body = null) {
+  const url = `${BASE_URL}${path}`;
+  const headers = {
+    "Content-Type": "application/json",
+    Cookie: Object.entries(COOKIE_JAR)
+      .map(([k, v]) => `${k}=${v}`)
+      .join("; "),
+  };
+
+  const options = { method, headers };
+  if (body) options.body = JSON.stringify(body);
+
+  const res = await fetch(url, options);
+  const data = await res.json();
+
+  const setCookie = res.headers.get("set-cookie");
+  if (setCookie) {
+    setCookie.split(",").forEach((cookie) => {
+      const [nameValue] = cookie.split(";");
+      const [name, value] = nameValue.split("=");
+      COOKIE_JAR[name.trim()] = value.trim();
+    });
+  }
+
+  return { status: res.status, data };
+}
+
+async function testRegister() {
+  console.log("\n1. Registering user...");
+  const res = await request("POST", "/api/auth/register", {
+    username: "testuser",
+    email: "test@example.com",
+    password: "password123",
+  });
+  console.log(`   Status: ${res.status}`);
+  console.log(`   Response:`, res.data);
+  return res.status === 201;
+}
+
+async function testLogin() {
+  console.log("\n2. Logging in...");
+  const res = await request("POST", "/api/auth/login", {
+    username: "testuser",
+    password: "password123",
+  });
+  console.log(`   Status: ${res.status}`);
+  console.log(`   Response:`, res.data);
+  return res.status === 200;
+}
+
+async function testSpotifyConnect() {
+  console.log("\n3. Getting Spotify auth URL...");
+  const res = await request("GET", "/api/spotify/connect");
+  console.log(`   Status: ${res.status}`);
+  if (res.data.authUrl) {
+    console.log(`   Auth URL: ${res.data.authUrl}`);
+    console.log("\n   >>> Open this URL in your browser to authorize <<<");
+    console.log("   >>> After authorizing, you'll be redirected back <<<");
+  }
+  return res.data.authUrl;
+}
+
+async function testAnalyze() {
+  console.log("\n4. Running analysis...");
+  const res = await request("GET", "/api/spotify/analyze");
+  console.log(`   Status: ${res.status}`);
+  if (res.status === 200) {
+    console.log(`   Profile stats:`, res.data.profile?.stats);
+    console.log(`   Top genre:`, res.data.profile?.stats?.topGenre);
+    console.log(`   Music personality:`, res.data.analysis?.musicPersonality?.substring(0, 100) + "...");
+  } else {
+    console.log(`   Response:`, res.data);
+  }
+  return res.status === 200;
+}
+
+async function testLogout() {
+  console.log("\n5. Logging out...");
+  const res = await request("POST", "/api/auth/logout");
+  console.log(`   Status: ${res.status}`);
+  console.log(`   Response:`, res.data);
+}
+
+async function runTests() {
+  console.log("=== Spotify Music Analyzer Test ===");
+  console.log("Make sure server is running on port 3000\n");
+
+  try {
+    const registered = await testRegister();
+    if (!registered) {
+      console.log("\nRegistration failed. User might already exist. Trying login...");
+    }
+
+    const loggedIn = await testLogin();
+    if (!loggedIn) {
+      console.log("\nLogin failed. Check credentials.");
+      return;
+    }
+
+    const authUrl = await testSpotifyConnect();
+    if (!authUrl) {
+      console.log("\nFailed to get auth URL.");
+      return;
+    }
+
+    console.log("\n--- Waiting for Spotify authorization ---");
+    console.log("After authorizing in browser, press Enter here to continue...");
+    
+    await new Promise((resolve) => {
+      process.stdin.once("data", resolve);
+    });
+
+    const analyzed = await testAnalyze();
+    if (analyzed) {
+      console.log("\n=== Analysis complete! ===");
+    }
+
+    await testLogout();
+  } catch (error) {
+    console.error("\nError:", error.message);
+  }
+
+  process.exit(0);
+}
+
+runTests();
+</file>
+
+</files>

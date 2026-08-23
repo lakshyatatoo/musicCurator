@@ -1,4 +1,5 @@
 require("dotenv").config();
+console.log("OPENCODE_API_KEY loaded:", process.env.OPENCODE_API_KEY ? "YES" : "NO");
 const app = require("./src/app");
 const connectDB = require("./src/db/db");
 
